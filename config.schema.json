@@ -1,15 +1,47 @@
 {
-  "pluginAlias": "ExampleHomebridgePlugin",
+  "pluginAlias": "Breezart",
   "pluginType": "platform",
   "singular": true,
   "schema": {
     "type": "object",
     "properties": {
-      "name": {
-        "title": "Name",
-        "type": "string",
-        "required": true,
-        "default": "Example Dynamic Platform"
+      "devices": {
+        "type": "array",
+        "items": {
+          "title": "Devices",
+          "type": "object",
+          "properties": {
+            "name": {
+              "title": "Name",
+              "type": "string",
+              "required": true,
+              "description": "Set the Breezart device name for display in the Home app"
+            },
+            "host": {
+              "name": "IP Address",
+              "type": "string",
+              "placeholder": "192.168.0.20",
+              "description": "Set the ip address to connect to the Breezart device",
+              "required": true
+            },
+            "port": {
+              "title": "Port",
+              "type": "integer",
+              "default": 1560,
+              "placeholder": 1560,
+              "maximum": 65535,
+              "description": "Set the port to connect to the Breezart device"
+            },
+            "password": {
+              "title": "Password",
+              "type": "integer",
+              "maximum": 65535,
+              "placeholder": 12345,
+              "description": "Set the password to connect the to Breezart device",
+              "required": true
+            }
+          }
+        }
       }
     }
   }
