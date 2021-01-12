@@ -25,7 +25,7 @@ export class BreezartHomebridgePlatform implements DynamicPlatformPlugin {
     public readonly api: API,
   ) {
 
-    this.log.debug('Finished initializing platform:', PLATFORM_NAME); //  this.config.name
+    this.log.debug('Finished initializing platform:', PLATFORM_NAME);
 
     // When this event is fired it means Homebridge has restored all cached accessories from disk.
     // Dynamic Platform plugins should only register new accessories after this event was fired,
