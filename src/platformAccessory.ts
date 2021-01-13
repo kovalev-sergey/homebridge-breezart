@@ -289,7 +289,7 @@ export class BreezartPlatformAccessory {
       this.service.getCharacteristic(this.platform.Characteristic.RotationSpeed)
         .setProps({
           /* The minimum value is not set because the fan must be able to turned off. */
-          maxValue: this.breezart.TempMax * 10,
+          maxValue: this.breezart.SpeedMax * 10,
           minStep: 10,
         });
 
