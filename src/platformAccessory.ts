@@ -23,8 +23,7 @@ export class BreezartPlatformAccessory {
   private breezart: BreezartClient;
 
   /**
-   * These are just used to create a working example
-   * You should implement your own code to track the state of your accessory
+   * Cached device status
    */
   private deviceStates = {
     active: 1,
@@ -33,7 +32,7 @@ export class BreezartPlatformAccessory {
     mode: 1, // mode = 4 - heating/cooling is off
     currentHeaterCoolerState: 0,
     heatingThresholdTemperature: 24.0,
-    filterChange: 0, // 0/1
+    filterChange: 0, // 0|1
     filterLifeLevel: 4, // 4%
   };
 
