@@ -45,7 +45,7 @@ export class BreezartPlatformAccessory {
     // set accessory information
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
       .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Breezart')
-      .setCharacteristic(this.platform.Characteristic.Model, 'Default-Model')
+      .setCharacteristic(this.platform.Characteristic.Model, 'TPD-283U-H')
       .setCharacteristic(this.platform.Characteristic.SerialNumber, 'Default-Serial');
     
     // get the Fanv2 service if it exists, otherwise create a new Fanv2 service
@@ -268,6 +268,25 @@ export class BreezartPlatformAccessory {
     // then Breezart was connected 
     this.breezart.on('connect', () => {
       this.platform.log.debug('Connection established', options.name);
+      // Update accessory information
+      this.accessory.getService(this.platform.Service.AccessoryInformation)!
+        .setCharacteristic(this.platform.Characteristic.FirmwareRevision, `${String(this.breezart.HiVerTPD)}.${String(this.breezart.LoVerTPD)}`)
+        .setCharacteristic(this.platform.Characteristic.SerialNumber, String(this.breezart.Firmware_Ver));
+      // Set props for heater/cooler
+      this.hQService.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
+        .setProps({
+          minValue: this.breezart.TempMin,
+          maxValue: this.breezart.TempMax,
+          minStep: 1,
+        });
+      // Set props for fan
+      this.service.getCharacteristic(this.platform.Characteristic.RotationSpeed)
+        .setProps({
+          /* The minimum value is not set because the fan must be able to turned off. */
+          maxValue: this.breezart.TempMax * 10,
+          minStep: 10,
+        });
+
       this.startPolls(POLLS_INTERVAL);
     });
     // if device disconnected - reconnect after 5 sec
