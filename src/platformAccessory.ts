@@ -90,6 +90,12 @@ export class BreezartPlatformAccessory {
       .on('get', this.getFilterLifeLevel.bind(this));
     // TODO: Reset filter indications https://developers.homebridge.io/#/characteristic/ResetFilterIndication
 
+    
+    // Link all services to Fan
+    this.service.addLinkedService(this.hQService);
+    this.service.addLinkedService(this.fService);
+
+    // Connect to Brizart device and start the polling
     this.initBreezartClient(accessory.context.device);
   }
 
