@@ -17,6 +17,7 @@ For remote control using this module you must be able to connect the Breezart re
 * View vents rotation speed
 * View vents work mode
 * View heater temerature
+* Fan speed control
 
 > **Disclaimer**\
 > Work in progress\
