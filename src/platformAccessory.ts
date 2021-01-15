@@ -2,26 +2,26 @@
 import { Service, PlatformAccessory, CharacteristicValue, CharacteristicSetCallback, CharacteristicGetCallback } from 'homebridge';
 
 import { BreezartHomebridgePlatform } from './platform';
-import { BreezartDeviceConfig } from './configTypes';
+import { BreezartDeviceConfig, BreezartEventTypes } from 'breezart-client';
+import { BreezartController } from './breezartController';
 
-import BreezartClient from 'breezart-client';
 
 /**
  * Device polling interval in mc
  */
 const POLLS_INTERVAL = 1000;
 
-interface DeviceStates {
-  active: number;
-  rotationSpeed: number;
-  currentTemperature: number;
-  mode: number;
-  currentHeaterCoolerState: number;
-  heatingThresholdTemperature: number;
-  filterChange: number;
-  filterLifeLevel: number;
-  error: Error | null;
-}
+// interface DeviceStates {
+//   active: number;
+//   rotationSpeed: number;
+//   currentTemperature: number;
+//   mode: number;
+//   currentHeaterCoolerState: number;
+//   heatingThresholdTemperature: number;
+//   filterChange: number;
+//   filterLifeLevel: number;
+//   error: Error | null;
+// }
 
 /**
  * Breezart Accessory
@@ -33,22 +33,7 @@ export class BreezartPlatformAccessory {
   private hQService: Service;
   private fService: Service;
 
-  private breezart: BreezartClient;
-
-  /**
-   * Cached device status
-   */
-  private deviceStates = {
-    active: 1,
-    rotationSpeed: 60,
-    currentTemperature: 24.4,
-    mode: 1, // mode = 4 - heating/cooling is off
-    currentHeaterCoolerState: 0,
-    heatingThresholdTemperature: 24.0,
-    filterChange: 0, // 0|1
-    filterLifeLevel: 4, // 4%
-    error: null, // the last error from a device
-  } as DeviceStates;
+  private breezart: BreezartController;
 
   constructor(
     private readonly platform: BreezartHomebridgePlatform,
@@ -108,6 +93,13 @@ export class BreezartPlatformAccessory {
     this.service.addLinkedService(this.hQService);
     this.service.addLinkedService(this.fService);
 
+    const connectionOptions = {
+      host: accessory.context.device.host as string,
+      port: accessory.context.device.port as number,
+      password: accessory.context.device.password as number,
+    };
+
+    this.breezart = new BreezartController(connectionOptions as BreezartDeviceConfig);
     // Connect to Brizart device and start the polling
     this.initBreezartClient(accessory.context.device);
   }
@@ -115,15 +107,15 @@ export class BreezartPlatformAccessory {
   getActive(callback: CharacteristicGetCallback) {
     // Min Value	0
     // Max Value	1
-    const isActive = this.deviceStates.active;
-    const error = this.deviceStates.error;
+    const isActive = this.breezart.active;
+    const error = this.breezart.error;
     this.platform.log.debug('Get Characteristic Active ->', isActive);
     callback(error, isActive);
   }
 
   setActive(value: CharacteristicValue, callback: CharacteristicSetCallback) {
-    this.deviceStates.active = value as number;
-    const error = this.deviceStates.error;
+    this.breezart.active = value as number;
+    const error = this.breezart.error;
     this.platform.log.debug('Set Characteristic Active ->', value);
     callback(error);
   }
@@ -132,26 +124,28 @@ export class BreezartPlatformAccessory {
     // Min Value	0
     // Max Value	100
     // Min Step	1
-    const rotationSpeed = this.deviceStates.rotationSpeed * 10;
-    const error = this.deviceStates.error;
+    const rotationSpeed = this.breezart.rotationSpeed * 10;
+    const error = this.breezart.error;
     this.platform.log.debug('Get Characteristic RotationSpeed ->', rotationSpeed);
     callback(error, rotationSpeed);
   }
 
   setRotationSpeed(value: CharacteristicValue, callback: CharacteristicSetCallback) {
-    
-    this.deviceStates.rotationSpeed = Math.round(value as number / 10);
-    const error = this.deviceStates.error;
+  
+    const targetSpeed = Math.round(value as number / 10);
+    this.breezart.rotationSpeed = targetSpeed;
+
     this.platform.log.debug('Set Characteristic RotationSpeed ->', value);
-    callback(error);
+    
+    this.breezart.setFanSpeed(targetSpeed, callback);
   }
 
   getCurrentTemperature(callback: CharacteristicGetCallback) {
     // Min Value	0
     // Max Value	100
     // Min Step	0.1
-    const currentTemperature = this.deviceStates.currentTemperature;
-    const error = this.deviceStates.error;
+    const currentTemperature = this.breezart.currentTemperature;
+    const error = this.breezart.error;
     this.platform.log.debug('Get Characteristic CurrentTemperature ->', currentTemperature);
     callback(error, currentTemperature);
   }
@@ -160,23 +154,23 @@ export class BreezartPlatformAccessory {
     // Min Value	0
     // Max Value	1
     let modeActive = this.platform.Characteristic.Active.ACTIVE;
-    if (this.deviceStates.mode === 4) {
+    if (this.breezart.mode === 4) {
       modeActive = this.platform.Characteristic.Active.INACTIVE;
     }
 
-    const error = this.deviceStates.error;
+    const error = this.breezart.error;
     this.platform.log.debug('Get Characteristic modeActive ->', modeActive);
     callback(error, modeActive);
   }
 
   setModeActive(value: CharacteristicValue, callback: CharacteristicSetCallback) {
-    if (value !== this.deviceStates.mode) {
+    if (value !== this.breezart.mode) {
       if (value === this.platform.Characteristic.Active.INACTIVE) {
-        this.deviceStates.mode = 4;
-        this.platform.log.debug('Set Characteristic modeActive ->', this.deviceStates.mode);
+        this.breezart.mode = 4;
+        this.platform.log.debug('Set Characteristic modeActive ->', this.breezart.mode);
       }
     }
-    const error = this.deviceStates.error;
+    const error = this.breezart.error;
     callback(error);
   }
 
@@ -184,7 +178,7 @@ export class BreezartPlatformAccessory {
     // Min Value	0
     // Max Value	3
     let currentHeaterCoolerState;
-    switch (this.deviceStates.currentHeaterCoolerState) {
+    switch (this.breezart.currentHeaterCoolerState) {
       case 0:
         currentHeaterCoolerState = this.platform.Characteristic.CurrentHeaterCoolerState.HEATING;
         break;
@@ -205,14 +199,14 @@ export class BreezartPlatformAccessory {
         break;
     }
     this.platform.log.debug('Get Characteristic currentHeaterCoolerState ->', currentHeaterCoolerState);
-    const error = this.deviceStates.error;
+    const error = this.breezart.error;
     callback(error, currentHeaterCoolerState);
   }
 
   getTargetHeaterCoolerState(callback: CharacteristicGetCallback) {
     // Min Value	0
     // Max Value	2
-    const mode = this.deviceStates.mode;
+    const mode = this.breezart.mode;
     let targetHeaterCoolerState;
     switch (mode) {
       case 1:
@@ -225,7 +219,7 @@ export class BreezartPlatformAccessory {
         targetHeaterCoolerState = this.platform.Characteristic.TargetHeaterCoolerState.AUTO;
         break;
     }
-    const error = this.deviceStates.error;
+    const error = this.breezart.error;
     this.platform.log.debug('Get Characteristic targetHeaterCoolerState ->', targetHeaterCoolerState);
     callback(error, targetHeaterCoolerState);
   }
@@ -233,16 +227,16 @@ export class BreezartPlatformAccessory {
   setTargetHeaterCoolerState(value: CharacteristicValue, callback: CharacteristicSetCallback) {
     switch (value as number) {
       case this.platform.Characteristic.TargetHeaterCoolerState.HEAT:
-        this.deviceStates.mode = 1;
+        this.breezart.mode = 1;
         break;
       case this.platform.Characteristic.TargetHeaterCoolerState.COOL:
-        this.deviceStates.mode = 2;
+        this.breezart.mode = 2;
         break;
       default:
-        this.deviceStates.mode = 3;
+        this.breezart.mode = 3;
         break;
     }
-    const error = this.deviceStates.error;
+    const error = this.breezart.error;
     this.platform.log.debug('Set Characteristic targetHeaterCoolerState ->', value);
     callback(error);
   }
@@ -251,36 +245,36 @@ export class BreezartPlatformAccessory {
     // Min Value	0
     // Max Value	25
     // Min Step	0.1
-    const targetTemperature = this.deviceStates.heatingThresholdTemperature;
-    const error = this.deviceStates.error;
+    const targetTemperature = this.breezart.heatingThresholdTemperature;
+    const error = this.breezart.error;
     this.platform.log.debug('Get Characteristic heatingThresholdTemperature ->', targetTemperature);
     callback(error, targetTemperature);
   }
   
   setHeatingThresholdTemperature(value: CharacteristicValue, callback: CharacteristicSetCallback) {
     const temp = Math.round(value as number);
-    this.deviceStates.heatingThresholdTemperature = temp;
-    const error = this.deviceStates.error;
+    this.breezart.heatingThresholdTemperature = temp;
+    const error = this.breezart.error;
     this.platform.log.debug('Set Characteristic heatingThresholdTemperature ->', value);
     callback(error);
   }
   
   getFilterChangeIndication(callback: CharacteristicGetCallback) {
-    const filterChange = this.deviceStates.filterChange;
-    const error = this.deviceStates.error;
+    const filterChange = this.breezart.filterChange;
+    const error = this.breezart.error;
     this.platform.log.debug('Get Characteristic filterChange ->', filterChange);
     callback(error, filterChange);
   }
 
   getFilterLifeLevel(callback: CharacteristicGetCallback) {
     let filterLifeLevel;
-    if (this.deviceStates.filterLifeLevel === 255 || this.deviceStates.filterLifeLevel === null) {
+    if (this.breezart.filterLifeLevel === 255 || this.breezart.filterLifeLevel === null) {
       // it's like undefined
       filterLifeLevel = 0;
     } else {
-      filterLifeLevel = this.deviceStates.filterLifeLevel > 100 ? 100 : this.deviceStates.filterLifeLevel;
+      filterLifeLevel = this.breezart.filterLifeLevel > 100 ? 100 : this.breezart.filterLifeLevel;
     }
-    const error = this.deviceStates.error;
+    const error = this.breezart.error;
     this.platform.log.debug('Get Characteristic filterChange ->', filterLifeLevel);
     callback(error, filterLifeLevel);
   }
@@ -290,16 +284,9 @@ export class BreezartPlatformAccessory {
    */
   initBreezartClient(options: BreezartDeviceConfig) {
     this.platform.log.debug('initBreezartClient');
-    const connectionOptions = {
-      host: options.host as string,
-      port: options.port as number,
-      password: options.password as number,
-    };
-
-    this.breezart = new BreezartClient(connectionOptions);
 
     // then Breezart was connected 
-    this.breezart.on('connect', () => {
+    this.breezart.on(BreezartEventTypes.CONNECT, () => {
       this.platform.log.debug('Connection established', options.name);
       // Update accessory information
       this.accessory.getService(this.platform.Service.AccessoryInformation)!
@@ -323,7 +310,7 @@ export class BreezartPlatformAccessory {
       this.startPolls(POLLS_INTERVAL);
     });
     // if device disconnected - reconnect after 5 sec
-    this.breezart.on('disconnect', () => {
+    this.breezart.on(BreezartEventTypes.DISCONNECT, () => {
       this.platform.log.debug('Device disconnected', options.name);
       if (!this.breezart.connected) {
         setTimeout(() => {
@@ -332,9 +319,9 @@ export class BreezartPlatformAccessory {
       }
     });
     // handle errors
-    this.breezart.on('error', (err: Error) => {
+    this.breezart.on(BreezartEventTypes.ERROR, (err: Error) => {
       // if from device was received an error, set it to device state
-      this.deviceStates.error = err;
+      this.breezart.error = err;
       this.platform.log.error(err.message);
     });
 
@@ -349,9 +336,10 @@ export class BreezartPlatformAccessory {
       if (!this.breezart.connected) {
         return;
       }
-      this.breezart.getCurrentStatus(() => {
-        // reset error, if status was received
-        this.deviceStates.error = null;
+      this.breezart.PullStatus((error) => {
+        if (error) {
+          return;
+        }
         this.setDeviceStates();
       });
     }, interval);
@@ -359,92 +347,70 @@ export class BreezartPlatformAccessory {
 
   setDeviceStates() {
     // active (like the Power On)
-    if (this.deviceStates.active !== this.breezart.PwrBtnState) {
-      this.deviceStates.active = this.breezart.PwrBtnState;
-      this.service.updateCharacteristic(this.platform.Characteristic.Active, this.deviceStates.active);
-    }
+    this.service.updateCharacteristic(this.platform.Characteristic.Active, this.breezart.active);
     // fan rotation speed
-    if (this.deviceStates.rotationSpeed !== this.breezart.SpeedTarget) {
-      this.deviceStates.rotationSpeed = this.breezart.SpeedTarget;
-      this.service.updateCharacteristic(this.platform.Characteristic.RotationSpeed, this.deviceStates.rotationSpeed * 10);
-    }
+    this.service.updateCharacteristic(this.platform.Characteristic.RotationSpeed, this.breezart.rotationSpeed * 10);
     // current temperature
-    if (this.deviceStates.currentTemperature !== this.breezart.TInf) {
-      this.deviceStates.currentTemperature = this.breezart.TInf;
-      this.hQService.updateCharacteristic(this.platform.Characteristic.CurrentTemperature, this.deviceStates.currentTemperature);
+    if (this.breezart.currentTemperature) {
+      this.hQService.updateCharacteristic(this.platform.Characteristic.CurrentTemperature, this.breezart.currentTemperature);
     }
     // mode
-    if (this.deviceStates.mode !== this.breezart.ModeSet) {
-      this.deviceStates.mode = this.breezart.ModeSet;
-      const modeActive = this.deviceStates.mode === 4 ? 0 : 1;
-      this.hQService.updateCharacteristic(this.platform.Characteristic.Active, modeActive);
-      const mode = this.deviceStates.mode;
-      let targetHeaterCoolerState;
-      switch (mode) {
-        case 1:
-          targetHeaterCoolerState = this.platform.Characteristic.TargetHeaterCoolerState.HEAT;
-          break;
-        case 2:
-          targetHeaterCoolerState = this.platform.Characteristic.TargetHeaterCoolerState.COOL;
-          break;
-        default:
-          targetHeaterCoolerState = this.platform.Characteristic.TargetHeaterCoolerState.AUTO;
-          break;
-      }
-      this.hQService.updateCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState, targetHeaterCoolerState);
+    const modeActive = this.breezart.mode === 4 ? 0 : 1;
+    this.hQService.updateCharacteristic(this.platform.Characteristic.Active, modeActive);
+    const mode = this.breezart.mode;
+    let targetHeaterCoolerState;
+    switch (mode) {
+      case 1:
+        targetHeaterCoolerState = this.platform.Characteristic.TargetHeaterCoolerState.HEAT;
+        break;
+      case 2:
+        targetHeaterCoolerState = this.platform.Characteristic.TargetHeaterCoolerState.COOL;
+        break;
+      default:
+        targetHeaterCoolerState = this.platform.Characteristic.TargetHeaterCoolerState.AUTO;
+        break;
+    }
+    this.hQService.updateCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState, targetHeaterCoolerState);
 
-    }
     // current heater coolerState
-    if (this.deviceStates.currentHeaterCoolerState !== this.breezart.Mode) {
-      this.deviceStates.currentHeaterCoolerState = this.breezart.Mode;
-      let currentHeaterCoolerState;
-      switch (this.deviceStates.currentHeaterCoolerState) {
-        case 0:
-          currentHeaterCoolerState = this.platform.Characteristic.CurrentHeaterCoolerState.HEATING;
-          break;
-        case 1:
-          currentHeaterCoolerState = this.platform.Characteristic.CurrentHeaterCoolerState.COOLING;
-          break;
-        case 2:
-          currentHeaterCoolerState = this.platform.Characteristic.CurrentHeaterCoolerState.HEATING;
-          break;
-        case 3:
-          currentHeaterCoolerState = this.platform.Characteristic.CurrentHeaterCoolerState.COOLING;
-          break;
-        case 4:
-          currentHeaterCoolerState = this.platform.Characteristic.CurrentHeaterCoolerState.IDLE;
-          break;
-        default:
-          currentHeaterCoolerState = this.platform.Characteristic.CurrentHeaterCoolerState.INACTIVE;
-          break;
-      }
-      this.hQService.updateCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState, currentHeaterCoolerState);
+    let currentHeaterCoolerState;
+    switch (this.breezart.currentHeaterCoolerState) {
+      case 0:
+        currentHeaterCoolerState = this.platform.Characteristic.CurrentHeaterCoolerState.HEATING;
+        break;
+      case 1:
+        currentHeaterCoolerState = this.platform.Characteristic.CurrentHeaterCoolerState.COOLING;
+        break;
+      case 2:
+        currentHeaterCoolerState = this.platform.Characteristic.CurrentHeaterCoolerState.HEATING;
+        break;
+      case 3:
+        currentHeaterCoolerState = this.platform.Characteristic.CurrentHeaterCoolerState.COOLING;
+        break;
+      case 4:
+        currentHeaterCoolerState = this.platform.Characteristic.CurrentHeaterCoolerState.IDLE;
+        break;
+      default:
+        currentHeaterCoolerState = this.platform.Characteristic.CurrentHeaterCoolerState.INACTIVE;
+        break;
     }
+    this.hQService.updateCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState, currentHeaterCoolerState);
 
     // heatingThresholdTemperature
-    if (this.deviceStates.heatingThresholdTemperature !== this.breezart.TemperTarget) {
-      this.deviceStates.heatingThresholdTemperature = this.breezart.TemperTarget;
-      this.hQService.updateCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature, this.deviceStates.heatingThresholdTemperature);
-    }
+    this.hQService.updateCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature, this.breezart.heatingThresholdTemperature);
 
     // filterChange
-    if (this.deviceStates.filterChange !== this.breezart.ChangeFilter) {
-      this.deviceStates.filterChange = this.breezart.ChangeFilter;
-      this.fService.updateCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature, this.deviceStates.filterChange);
-    }
+    this.fService.updateCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature, this.breezart.filterChange);
 
     // filterLifeLevel
-    if (this.deviceStates.filterLifeLevel !== this.breezart.FilterDust) {
-      this.deviceStates.filterLifeLevel = this.breezart.FilterDust;
-      let filterLifeLevel;
-      if (this.deviceStates.filterLifeLevel === 255 || this.deviceStates.filterLifeLevel === null) {
-        // it's like undefined
-        filterLifeLevel = 0;
-      } else {
-        filterLifeLevel = this.deviceStates.filterLifeLevel > 100 ? 100 : this.deviceStates.filterLifeLevel;
-      }
-      this.fService.updateCharacteristic(this.platform.Characteristic.FilterLifeLevel, filterLifeLevel);
+    let filterLifeLevel;
+    if (this.breezart.filterLifeLevel === 255 || this.breezart.filterLifeLevel === null) {
+      // it's like undefined
+      filterLifeLevel = 0;
+    } else {
+      filterLifeLevel = this.breezart.filterLifeLevel > 100 ? 100 : this.breezart.filterLifeLevel;
     }
+    this.fService.updateCharacteristic(this.platform.Characteristic.FilterLifeLevel, filterLifeLevel);
   }
 
 }

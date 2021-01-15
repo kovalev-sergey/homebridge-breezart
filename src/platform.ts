@@ -2,7 +2,9 @@ import { API, DynamicPlatformPlugin, Logger, PlatformAccessory, Service, Charact
 
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { BreezartPlatformAccessory } from './platformAccessory';
-import { BreezartDeviceConfig, BreezartPlatformConfig } from './configTypes';
+import { BreezartPlatformConfig } from './configTypes';
+import { BreezartDeviceConfig } from 'breezart-client';
+
 
 /**
  * BreezartHomebridgePlatform
