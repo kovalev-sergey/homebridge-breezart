@@ -252,11 +252,10 @@ export class BreezartPlatformAccessory {
   }
   
   setHeatingThresholdTemperature(value: CharacteristicValue, callback: CharacteristicSetCallback) {
-    const temp = Math.round(value as number);
-    this.breezart.heatingThresholdTemperature = temp;
-    const error = this.breezart.error;
+    const targetTemp = Math.round(value as number);
+    this.breezart.heatingThresholdTemperature = targetTemp;
     this.platform.log.debug('Set Characteristic heatingThresholdTemperature ->', value);
-    callback(error);
+    this.breezart.setTemperature(targetTemp, callback);
   }
   
   getFilterChangeIndication(callback: CharacteristicGetCallback) {
