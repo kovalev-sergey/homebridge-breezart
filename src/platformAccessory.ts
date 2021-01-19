@@ -133,7 +133,7 @@ export class BreezartPlatformAccessory {
 
   setRotationSpeed(value: CharacteristicValue, callback: CharacteristicSetCallback) {
   
-    const targetSpeed = value as number < this.breezart.TempMin ? this.breezart.TempMin : value as number;
+    const targetSpeed = value as number < this.breezart.SpeedMin ? this.breezart.SpeedMin : value as number;
     this.breezart.rotationSpeed = targetSpeed;
 
     this.platform.log.debug('Set Characteristic RotationSpeed ->', value);
