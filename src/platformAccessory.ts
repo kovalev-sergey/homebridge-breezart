@@ -114,17 +114,18 @@ export class BreezartPlatformAccessory {
   }
 
   setActive(value: CharacteristicValue, callback: CharacteristicSetCallback) {
-    this.breezart.active = value as number;
-    const error = this.breezart.error;
+    const targetPowerState = value as boolean;
+    this.breezart.active = targetPowerState;
     this.platform.log.debug('Set Characteristic Active ->', value);
-    callback(error);
+
+    this.breezart.setPowerOn(targetPowerState, callback);
   }
 
   getRotationSpeed(callback: CharacteristicGetCallback) {
     // Min Value	0
     // Max Value	100
     // Min Step	1
-    const rotationSpeed = this.breezart.rotationSpeed * 10;
+    const rotationSpeed = this.breezart.rotationSpeed;
     const error = this.breezart.error;
     this.platform.log.debug('Get Characteristic RotationSpeed ->', rotationSpeed);
     callback(error, rotationSpeed);
@@ -132,11 +133,11 @@ export class BreezartPlatformAccessory {
 
   setRotationSpeed(value: CharacteristicValue, callback: CharacteristicSetCallback) {
   
-    const targetSpeed = Math.round(value as number / 10);
+    const targetSpeed = value as number < this.breezart.TempMin ? this.breezart.TempMin : value as number;
     this.breezart.rotationSpeed = targetSpeed;
 
     this.platform.log.debug('Set Characteristic RotationSpeed ->', value);
-    
+
     this.breezart.setFanSpeed(targetSpeed, callback);
   }
 
@@ -301,9 +302,9 @@ export class BreezartPlatformAccessory {
       // Set props for fan
       this.service.getCharacteristic(this.platform.Characteristic.RotationSpeed)
         .setProps({
-          /* The minimum value is not set because the fan must be able to turned off. */
-          maxValue: this.breezart.SpeedMax * 10,
-          minStep: 10,
+          maxValue: this.breezart.SpeedMax,
+          minValue: this.breezart.SpeedMin - 1,
+          minStep: 1,
         });
 
       this.startPolls(POLLS_INTERVAL);
@@ -348,7 +349,7 @@ export class BreezartPlatformAccessory {
     // active (like the Power On)
     this.service.updateCharacteristic(this.platform.Characteristic.Active, this.breezart.active);
     // fan rotation speed
-    this.service.updateCharacteristic(this.platform.Characteristic.RotationSpeed, this.breezart.rotationSpeed * 10);
+    this.service.updateCharacteristic(this.platform.Characteristic.RotationSpeed, this.breezart.rotationSpeed);
     // current temperature
     if (this.breezart.currentTemperature) {
       this.hQService.updateCharacteristic(this.platform.Characteristic.CurrentTemperature, this.breezart.currentTemperature);
@@ -399,7 +400,7 @@ export class BreezartPlatformAccessory {
     this.hQService.updateCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature, this.breezart.heatingThresholdTemperature);
 
     // filterChange
-    this.fService.updateCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature, this.breezart.filterChange);
+    this.fService.updateCharacteristic(this.platform.Characteristic.FilterChangeIndication, this.breezart.filterChange);
 
     // filterLifeLevel
     let filterLifeLevel;

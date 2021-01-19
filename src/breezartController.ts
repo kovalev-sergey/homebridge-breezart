@@ -9,7 +9,7 @@ const UPDATE_TIMEOUT = 3000;
 
 export class BreezartController extends BreezartClient {
 
-  private _active: number;
+  private _active: boolean;
   private _rotationSpeed: number;
   private _currentTemperature: number | null;
   private _mode: number; // mode = 4 - heating/cooling is off
@@ -25,7 +25,7 @@ export class BreezartController extends BreezartClient {
     super(options);
     this._times = new Map();
 
-    this._active = 0;
+    this._active = false;
     this._rotationSpeed = 40;
     this._currentTemperature = 24.4;
     this._mode = 1;
@@ -41,7 +41,7 @@ export class BreezartController extends BreezartClient {
     return this._active;
   }
 
-  public set active(value: number) {
+  public set active(value: boolean) {
     this._active = value;
     this._times['active'] = Date.now();
   }
@@ -107,7 +107,7 @@ export class BreezartController extends BreezartClient {
         const expired = Date.now() - UPDATE_TIMEOUT;
 
         if (!('active' in this._times) || expired > this._times['active']) {
-          this._active = this.PwrBtnState;
+          this._active = !!this.PwrBtnState;
         }
         if (!('rotationSpeed' in this._times) || expired > this._times['rotationSpeed']) {
           this._rotationSpeed = this.SpeedTarget;
