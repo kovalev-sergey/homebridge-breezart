@@ -7,6 +7,7 @@ Changelog
 
 - Enhance: added temperature control
 - Enhance: added power management
+- Fix: filter change indication
 
 ## v1.1.0
 
