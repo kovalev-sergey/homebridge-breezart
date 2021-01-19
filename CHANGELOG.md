@@ -3,6 +3,11 @@ Changelog
 
 # 1.x release
 
+## v1.2.0
+
+- Enhance: added temperature control
+- Enhance: added power management
+
 ## v1.1.0
 
 - Enhance: added fan speed control
