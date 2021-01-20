@@ -12,6 +12,8 @@ homebridge-breezart is a plugin for homebridge which allows you to control your 
 
 For remote control using this module you must be able to connect the Breezart remote **TPD-283U-H** to LAN, activate the remote control in it and set the password.
 
+**Attention**: Remotes must have firmware version `Vent 5.08`
+
 ## Features
 * View vents status
 * Power management

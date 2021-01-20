@@ -3,6 +3,9 @@ Changelog
 
 # 1.x release
 
+## v1.2.x [Unreleased]
+- Other: added the version of the compatible firmware
+
 ## v1.2.0
 
 - Enhance: added temperature control
