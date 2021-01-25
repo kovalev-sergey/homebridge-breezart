@@ -35,7 +35,7 @@ export class ResetTotalPowerConsumption extends Characteristic {
 
   constructor () {
     super('Reset Total Consumption', ResetTotalPowerConsumption.UUID, {
-      format: Formats.UINT16,
+      format: Formats.UINT32,
       perms: [Perms.PAIRED_READ, Perms.NOTIFY, Perms.PAIRED_WRITE],
     });
   }

@@ -290,6 +290,7 @@ export class BreezartPlatformAccessory {
   setResetTotalPowerConsumption(value: CharacteristicValue, callback: CharacteristicSetCallback) {
     const resetTotalPowerConsumption = value as number;
     this.breezart.resetTotalPwr = resetTotalPowerConsumption;
+    this.breezart.totalPwr = 0;
     const error = this.breezart.error;
     this.setExtraPersistedData();
     this.platform.log.debug('Set Characteristic resetTotalPowerConsumption ->', value);
