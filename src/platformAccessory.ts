@@ -92,8 +92,9 @@ export class BreezartPlatformAccessory {
       storage: 'fs',
       filename: `AccessoryHistory.${uuid.toShortForm(accessory.UUID)}.json`,
       disableRepeatLastData: true,
-      minutes: 1,
-      log: this.platform.log,
+      minutes: 10, // save averages every 10 minutes
+      size: 12096, // 60 / 10 * 24 * 28 * 3 - Store last 3 month
+      // log: this.platform.log, // block due to spam
     });
 
     // Link all services to Fan
