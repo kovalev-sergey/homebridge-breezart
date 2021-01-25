@@ -3,6 +3,9 @@ Changelog
 
 # 1.x release
 
+## v1.3.1
+- Fix: added missing dependency
+
 ## v1.3.0
 - Enhance: added the power consumption characteristics
 - Enhance: added the power consumption history
