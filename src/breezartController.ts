@@ -18,6 +18,8 @@ export class BreezartController extends BreezartClient {
   private _filterChange: number; // 0|1
   private _filterLifeLevel: number; // 4%
   private _error: Error | null; // the last error from a device
+  private _totalPwr: number; // 4%
+  private _resetTotalPwr: number; // Set to seconds from 1.1.2001 upon Reset of total consumption in Eve.app
 
   private _times: Map<string, Date>;
 
@@ -34,6 +36,8 @@ export class BreezartController extends BreezartClient {
     this._filterChange = 0;
     this._filterLifeLevel = 4;
     this._error = null;
+    this._totalPwr = 0;
+    this._resetTotalPwr = 0;
 
   }
 
@@ -94,7 +98,23 @@ export class BreezartController extends BreezartClient {
   }
 
   public set error(value: Error | null) {
-    this._error;
+    this._error = value;
+  }
+
+  public get totalPwr() {
+    return this._totalPwr;
+  }
+
+  public set totalPwr(value: number) {
+    this._totalPwr = value;
+  }
+
+  public get resetTotalPwr() {
+    return this._resetTotalPwr;
+  }
+
+  public set resetTotalPwr(value: number) {
+    this._resetTotalPwr = value;
   }
 
   PullStatus (callback: BreezartCallback) {

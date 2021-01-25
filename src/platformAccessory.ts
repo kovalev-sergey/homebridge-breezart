@@ -4,24 +4,12 @@ import { Service, PlatformAccessory, CharacteristicValue, CharacteristicSetCallb
 import { BreezartHomebridgePlatform } from './platform';
 import { BreezartDeviceConfig, BreezartEventTypes } from 'breezart-client';
 import { BreezartController } from './breezartController';
-
+import { CurrentPowerConsumption, TotalPowerConsumption, ResetTotalPowerConsumption } from './customCharacteristics';
 
 /**
  * Device polling interval in mc
  */
 const POLLS_INTERVAL = 1000;
-
-// interface DeviceStates {
-//   active: number;
-//   rotationSpeed: number;
-//   currentTemperature: number;
-//   mode: number;
-//   currentHeaterCoolerState: number;
-//   heatingThresholdTemperature: number;
-//   filterChange: number;
-//   filterLifeLevel: number;
-//   error: Error | null;
-// }
 
 /**
  * Breezart Accessory
@@ -34,6 +22,7 @@ export class BreezartPlatformAccessory {
   private fService: Service;
 
   private breezart: BreezartController;
+  private loggingService;
 
   constructor(
     private readonly platform: BreezartHomebridgePlatform,
@@ -78,6 +67,14 @@ export class BreezartPlatformAccessory {
     this.hQService.getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
       .on('set', this.setHeatingThresholdTemperature.bind(this))
       .on('get', this.getHeatingThresholdTemperature.bind(this));
+    // add Power Consumption characteristics for the history service
+    this.hQService.getCharacteristic(CurrentPowerConsumption)
+      .on('get', this.getCurrentPowerConsumption.bind(this));
+    this.hQService.getCharacteristic(TotalPowerConsumption)
+      .on('get', this.getTotalPowerConsumption.bind(this));
+    this.hQService.getCharacteristic(ResetTotalPowerConsumption)
+      .on('set', this.setResetTotalPowerConsumption.bind(this))
+      .on('get', this.getResetTotalPowerConsumption.bind(this));
     
     // Register Filter Maintaince service
     this.fService = this.accessory.getService(this.platform.Service.FilterMaintenance) ||
@@ -87,8 +84,15 @@ export class BreezartPlatformAccessory {
     this.fService.getCharacteristic(this.platform.Characteristic.FilterLifeLevel)
       .on('get', this.getFilterLifeLevel.bind(this));
     // TODO: Reset filter indications https://developers.homebridge.io/#/characteristic/ResetFilterIndication
-
     
+    // Register Elgato Eve history service
+    this.loggingService = new this.platform.FakeGatoHistoryService('custom', accessory, {
+      storage: 'fs',
+      disableRepeatLastData: true,
+      minutes: 1,
+      log: this.platform.log,
+    });
+
     // Link all services to Fan
     this.service.addLinkedService(this.hQService);
     this.service.addLinkedService(this.fService);
@@ -259,6 +263,36 @@ export class BreezartPlatformAccessory {
     this.breezart.setTemperature(targetTemp, callback);
   }
   
+  getCurrentPowerConsumption(callback: CharacteristicGetCallback) {
+    const currentPowerConsumption = this.breezart.Pwr;
+    const error = this.breezart.error;
+    this.platform.log.debug('Get Characteristic CurrentPowerConsumption ->', currentPowerConsumption);
+    callback(error, currentPowerConsumption);
+  }
+  
+  getTotalPowerConsumption(callback: CharacteristicGetCallback) {
+    const totalPowerConsumption = this.breezart.totalPwr;
+    const error = this.breezart.error;
+    this.platform.log.debug('Get Characteristic TotalPowerConsumption ->', totalPowerConsumption);
+    callback(error, totalPowerConsumption);
+  }
+  
+  getResetTotalPowerConsumption(callback: CharacteristicGetCallback) {
+    const resetTotalPowerConsumption = this.breezart.resetTotalPwr;
+    const error = this.breezart.error;
+    this.platform.log.debug('Get Characteristic ResetTotalPowerConsumption ->', resetTotalPowerConsumption);
+    callback(error, resetTotalPowerConsumption);
+  }
+
+  setResetTotalPowerConsumption(value: CharacteristicValue, callback: CharacteristicSetCallback) {
+    const resetTotalPowerConsumption = value as number;
+    this.breezart.resetTotalPwr = resetTotalPowerConsumption;
+    const error = this.breezart.error;
+    this.setExtraPersistedData();
+    this.platform.log.debug('Set Characteristic resetTotalPowerConsumption ->', value);
+    callback(error, resetTotalPowerConsumption);
+  }
+  
   getFilterChangeIndication(callback: CharacteristicGetCallback) {
     const filterChange = this.breezart.filterChange;
     const error = this.breezart.error;
@@ -399,6 +433,9 @@ export class BreezartPlatformAccessory {
     // heatingThresholdTemperature
     this.hQService.updateCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature, this.breezart.heatingThresholdTemperature);
 
+    // Pwr
+    this.hQService.updateCharacteristic(CurrentPowerConsumption, this.breezart.Pwr ? this.breezart.Pwr : 0);
+
     // filterChange
     this.fService.updateCharacteristic(this.platform.Characteristic.FilterChangeIndication, this.breezart.filterChange);
 
@@ -411,6 +448,47 @@ export class BreezartPlatformAccessory {
       filterLifeLevel = this.breezart.filterLifeLevel > 100 ? 100 : this.breezart.filterLifeLevel;
     }
     this.fService.updateCharacteristic(this.platform.Characteristic.FilterLifeLevel, filterLifeLevel);
+
+
+    // Calculate the Total Power Consumption metric
+    const deltaTotalPower = (this.breezart.Pwr ? this.breezart.Pwr : 0) * (POLLS_INTERVAL / 1000) / 3600 / 1000;
+    let persistedTotalPower = 0;
+    let resetTotalPowerConsumption = 0;
+    if (this.loggingService.isHistoryLoaded()) {
+      const extraPersistedData = this.loggingService.getExtraPersistedData();
+      persistedTotalPower = extraPersistedData?.totalPower || 0;
+      resetTotalPowerConsumption = extraPersistedData?.resetPower || 0;
+    }
+    const totalPower = persistedTotalPower + deltaTotalPower;
+    this.breezart.totalPwr = totalPower;
+    this.breezart.resetTotalPwr = resetTotalPowerConsumption;
+    this.setExtraPersistedData();
+
+    // TotalPowerConsumption
+    this.hQService.updateCharacteristic(TotalPowerConsumption, Math.round((this.breezart.totalPwr + Number.EPSILON) * 100) / 100);
+    // resetTotalPowerConsumption
+    this.hQService.updateCharacteristic(ResetTotalPowerConsumption, resetTotalPowerConsumption);
+
+    // add history
+    const moment = Math.round(new Date().valueOf() / 1000);
+    const entryPwr = {
+      time: moment,
+      power: this.breezart.Pwr,
+    };
+    this.loggingService.addEntry(entryPwr);
+    const entryTmp = {
+      time: moment,
+      temp: this.breezart.currentTemperature,
+    };
+    this.loggingService.addEntry(entryTmp);
+
+  }
+
+  setExtraPersistedData() {
+    this.loggingService.setExtraPersistedData({
+      totalPower: this.breezart.totalPwr,
+      resetPower: this.breezart.resetTotalPwr,
+    });
   }
 
 }

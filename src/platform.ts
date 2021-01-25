@@ -4,6 +4,7 @@ import { PLATFORM_NAME, PLUGIN_NAME } from './settings';
 import { BreezartPlatformAccessory } from './platformAccessory';
 import { BreezartPlatformConfig } from './configTypes';
 import { BreezartDeviceConfig } from 'breezart-client';
+import fakegato from 'fakegato-history';
 
 
 /**
@@ -20,6 +21,9 @@ export class BreezartHomebridgePlatform implements DynamicPlatformPlugin {
 
   // this is configs of the devices by uuid
   public readonly deviceConfigs: Map<string, BreezartDeviceConfig> = new Map();
+
+  // Elgato Eve history service
+  public readonly FakeGatoHistoryService;
 
   constructor(
     public readonly log: Logger,
@@ -38,6 +42,9 @@ export class BreezartHomebridgePlatform implements DynamicPlatformPlugin {
       // run the method to discover / register your devices as accessories
       this.discoverDevices();
     });
+
+    // Add Elgato Eve history service
+    this.FakeGatoHistoryService = fakegato(this.api);
   }
 
   /**
