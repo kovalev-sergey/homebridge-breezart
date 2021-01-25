@@ -20,6 +20,8 @@ For remote control using this module you must be able to connect the Breezart re
 * Fan speed control
 * Temperature control
 * View vents work mode
+* Energy consumption history
+* Temperature history
 
 > **Disclaimer**\
 > Work in progress\
@@ -71,3 +73,4 @@ Example configuration:
 ```
 Also you must be able to connect the Breezart remote **TPD-283U-H** to LAN, activate the remote control in it and set the password.
 
+A history of temperature and energy consumption is available in the Elgato Eve app.
