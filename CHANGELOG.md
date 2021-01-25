@@ -3,7 +3,10 @@ Changelog
 
 # 1.x release
 
-## v1.2.x [Unreleased]
+## v1.3.0
+- Enhance: added the power consumption characteristics
+- Enhance: added the power consumption history
+- Enhance: added the temperature history
 - Other: added the version of the compatible firmware
 
 ## v1.2.0
