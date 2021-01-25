@@ -6,6 +6,8 @@ import { BreezartDeviceConfig, BreezartEventTypes } from 'breezart-client';
 import { BreezartController } from './breezartController';
 import { CurrentPowerConsumption, TotalPowerConsumption, ResetTotalPowerConsumption } from './customCharacteristics';
 
+import { uuid } from 'hap-nodejs';
+
 /**
  * Device polling interval in mc
  */
@@ -88,6 +90,7 @@ export class BreezartPlatformAccessory {
     // Register Elgato Eve history service
     this.loggingService = new this.platform.FakeGatoHistoryService('custom', accessory, {
       storage: 'fs',
+      filename: `AccessoryHistory.${uuid.toShortForm(accessory.UUID)}.json`,
       disableRepeatLastData: true,
       minutes: 1,
       log: this.platform.log,
