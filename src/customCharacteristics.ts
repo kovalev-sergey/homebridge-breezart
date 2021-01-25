@@ -23,7 +23,7 @@ export class TotalPowerConsumption extends Characteristic {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore: custom unit
       unit: 'kWh',
-      minStep: 0.001,
+      minStep: 0.01,
       format: Formats.FLOAT,
       perms: [Perms.PAIRED_READ, Perms.NOTIFY],
     });
